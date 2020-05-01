@@ -397,6 +397,7 @@ GetOptions(
   'paranoid!'                => \$opt{'paranoid'},
   'P'                        => \$opt{'paranoid'},
   'pidfile|r=s'              => \$opt{'pidfile'},
+  'prelude=s'                => \$opt{'prelude'},
   'port|p=s'                 => \$opt{'port'},
   'Q'                        => \$opt{'setuid-with-sql'},
   'q'                        => \$opt{'sql-config'},
@@ -620,6 +621,11 @@ elsif ($log_facility eq 'file') {
     # file method failed
     $log_facility = 'stderr';
   }
+}
+
+if ($opt{prelude}){
+  use Mail::SpamAssassin::Prelude;
+  prelude_start($opt{prelude});
 }
 
 ### End initialization of logging ##########################
@@ -2066,6 +2072,10 @@ sub check {
 	       $tests, join(",", @extra));
   info($log);
 
+  if ($opt{prelude} && $status->is_spam()) {
+    log_prelude_alert($status, $tests, $scantime, $actual_length, $current_user, $>, $msg_threshold, $mail);
+  }
+
   # bug 3808: log scan results to any listening plugins, too
   $spamtest->call_plugins("log_scan_result", { result => $log });
 
@@ -3267,6 +3277,7 @@ Options:
  --virtual-config-dir=dir          Enable pattern based Virtual configs
                                    (needs -x)
  -r pidfile, --pidfile             Write the process id to pidfile
+ --prelude profile                 Enable prelude support with profile
  -s facility, --syslog=facility    Specify the syslog facility
  --syslog-socket=type              How to connect to syslogd
  --log-timestamp-fmt=fmt           strftime(3) format for timestamps, may be
@@ -3542,6 +3553,10 @@ If you use syslog logging, it is essential to send a SIGHUP to the spamd daemon
 when you restart the syslogd daemon.  (This is due to a shortcoming in Perl's
 syslog handling, where the disappearance of the connection to the syslogd is
 considered a fatal error.)
+
+=item B<--prelude>=I<profile>
+
+Create and send an IDMEF alert to Prelude with the profile <profile>.
 
 =item B<--syslog-socket>=I<type>
 
